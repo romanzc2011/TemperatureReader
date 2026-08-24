@@ -22,9 +22,7 @@
 #include "uart.h"
 #include "gpio.h"
 
-static const char *buffer;
-static volatile uint32_t tx_len;
-static volatile uint32_t tx_index;
+
 
 int main(void)
 {

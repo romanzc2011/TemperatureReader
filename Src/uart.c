@@ -57,10 +57,13 @@ void usart2_write(void)
     }
 }
 
-void usart2_callback(USART_TypeDef *USARTx)
+// --------------------------------------------------
+// USART2 CALLBACK
+// -------------------------------------------------- 
+void usart2_callback(USART_TypeDef *USARTx, uint32_t index, char *buffer)
 {
-    uint32_t data_length = strlen(buffer);
-    
+    USART2->DR = buffer[index];
+    index++;
 }
 
 // --------------------------------------------------
@@ -74,6 +77,9 @@ int usart2_read()
 void USART2_IRQHandler(void)
 {
     if (USART2->SR & USART_SR_TXE) {
-
+        usart2_callback(USART2, tx_index, tx_buffer);
+    }
+    else {
+        USART2->CR1 &= ~USART_CR1_TXEIE;
     }
 }

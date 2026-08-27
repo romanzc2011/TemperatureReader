@@ -3,5 +3,4 @@ mx.scratch
 !.settings
 .cache/
 .vscode/
-cmake/
 stm32f407xg_flash.ld

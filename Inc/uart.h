@@ -12,7 +12,7 @@
 #define BAUD_RATE         9600
 #define BUFFER_SIZE       32
 
-extern const char tx_buffer[BUFFER_SIZE];
+extern char tx_buffer[BUFFER_SIZE];
 extern volatile uint32_t tx_len;
 extern volatile uint32_t tx_index;
 

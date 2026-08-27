@@ -3,4 +3,3 @@ mx.scratch
 !.settings
 .cache/
 .vscode/
-stm32f407xg_flash.ld

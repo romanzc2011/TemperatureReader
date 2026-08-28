@@ -17,21 +17,28 @@
  */
 
 #include <stdint.h>
+#include <unistd.h>
 
 #include "stm32f407xx.h"
 #include "uart.h"
 #include "gpio.h"
 
-
-
+// -------------------------------------------------------
+// MAIN
+// -------------------------------------------------------
 int main(void)
 {
+    char *test_data = "Hello";
+
     // Init USRT2 and GPIOA, GPIOD
     gpio_init();
     usart2_init(BAUD_RATE, APB1_CLK);
     
     // MAIN SUPER LOOP
     while(1) {
-         
+        usart2_tx(test_data);
+        for (volatile uint32_t i=0; i < 1000000; i++) {
+            __asm__("nop");
+        }
     }
 }

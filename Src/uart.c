@@ -1,6 +1,12 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "uart.h"
 #include "stm32f407xx.h"
+
+char tx_buffer[BUFFER_SIZE];
+volatile size_t tx_len;
+volatile uint32_t tx_index;
 
 /*
     TX logic with interrupts:
@@ -20,9 +26,11 @@ void usart2_init(uint32_t baud, uint32_t pCLK)
     USART2->CR1 |= USART_UE;
     USART2->CR1 |= (USART_CR1_TE | USART_CR1_RE);
     USART2->CR1 &= ~USART_M;
-    set_uart_baudrate(USART2, baud, pCLK);
+    set_uart_baudrate(USART2, pCLK, baud);
 
     USART2->CR1 |= USART_CR1_RXNEIE;
+
+    NVIC_SetPriority(USART2_IRQn, 0);
     NVIC_EnableIRQ(USART2_IRQn);
 }
 
@@ -37,33 +45,29 @@ static uint16_t compute_uart_bdrate(uint32_t baud, uint32_t pCLK)
 // --------------------------------------------------
 // SET USART BAUD RATE
 // -------------------------------------------------- 
-static void set_uart_baudrate(USART_TypeDef *USARTx, uint32_t pCLK, uint32_t baud)
+static void set_uart_baudrate(USART_TypeDef *USARTx, uint32_t baud, uint32_t pCLK)
 {
     USARTx->BRR = compute_uart_bdrate(baud, pCLK);
 }
 
 // --------------------------------------------------
-// USART2 WRITE
-// ------------------------------- x-------------------
-void usart2_write(void)
-{
-    // Check if TX is empty first, then send data
-    if (USART2->SR & USART_SR_TXE) {
-        USART2->CR1 |= USART_CR1_TXEIE;
-
-        // Set the IRQ Handler to highest priority
-        NVIC_SetPriority(USART2_IRQn, 0);
-        NVIC_EnableIRQ(USART2_IRQn);
-    }
-}
-
+// USART2 TX
 // --------------------------------------------------
-// USART2 CALLBACK
-// -------------------------------------------------- 
-void usart2_callback(USART_TypeDef *USARTx, uint32_t index, char *buffer)
+void usart2_tx(char *tx_data)
 {
-    USART2->DR = buffer[index];
-    index++;
+    size_t len = strlen(tx_data);
+    if (len > BUFFER_SIZE) {
+        len = BUFFER_SIZE; // truncate to avoid overflowing tx_buffer
+    }
+
+    // Wait for any in-flight transmission to finish before reusing the shared buffer
+    while (tx_index < tx_len) { }
+
+    memcpy(tx_buffer, tx_data, len);
+    tx_len = len;
+    tx_index = 0;
+
+    USART2->CR1 |= USART_CR1_TXEIE;
 }
 
 // --------------------------------------------------
@@ -76,10 +80,17 @@ int usart2_read()
 
 void USART2_IRQHandler(void)
 {
-    if (USART2->SR & USART_SR_TXE) {
-        usart2_callback(USART2, tx_index, tx_buffer);
+    if ((USART2->CR1 & USART_CR1_RXNEIE) && (USART2->SR & USART_SR_RXNE)) {
+        (void)USART2->DR; // read to clear RXNE; RX handling not implemented yet
     }
-    else {
-        USART2->CR1 &= ~USART_CR1_TXEIE;
+
+    if ((USART2->CR1 & USART_CR1_TXEIE) && (USART2->SR & USART_SR_TXE)) {
+        if (tx_index < tx_len) {
+            USART2->DR = tx_buffer[tx_index];
+            tx_index++;
+        }
+        else {
+            USART2->CR1 &= ~USART_CR1_TXEIE;
+        }
     }
 }
